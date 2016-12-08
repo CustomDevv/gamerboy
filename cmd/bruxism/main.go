@@ -27,6 +27,7 @@ import (
 	"github.com/iopred/bruxism/slowmodeplugin"
 	"github.com/iopred/bruxism/statsplugin"
 	"github.com/iopred/bruxism/streamerplugin"
+	"github.com/iopred/bruxism/thankyouplugin"
 	"github.com/iopred/bruxism/topstreamersplugin"
 	"github.com/iopred/bruxism/triviaplugin"
 	"github.com/iopred/bruxism/wormholeplugin"
@@ -99,6 +100,7 @@ func main() {
 	cp.AddCommand("stats", statsplugin.StatsCommand, statsplugin.StatsHelp)
 	cp.AddCommand("info", statsplugin.StatsCommand, nil)
 	cp.AddCommand("stat", statsplugin.StatsCommand, nil)
+	cp.AddCommand("thankyou", thankyouplugin.ThankyouCommand, thankyouplugin.ThankyouHelp)
 	if bot.MashableKey != "" {
 		cp.AddCommand("numbertrivia", numbertriviaplugin.NumberTriviaCommand, numbertriviaplugin.NumberTriviaHelp)
 	}
