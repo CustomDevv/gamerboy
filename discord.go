@@ -17,8 +17,11 @@ const DiscordServiceName string = "Discord"
 
 // DiscordMessage is a Message wrapper around discordgo.Message.
 type DiscordMessage struct {
+	Discord          *Discord
 	DiscordgoMessage *discordgo.Message
 	MessageType      MessageType
+	Nick             *string
+	Content          *string
 }
 
 // Channel returns the channel id for this message.
@@ -28,10 +31,16 @@ func (m *DiscordMessage) Channel() string {
 
 // UserName returns the user name for this message.
 func (m *DiscordMessage) UserName() string {
-	if m.DiscordgoMessage.Author == nil {
+	me := m.DiscordgoMessage
+	if me.Author == nil {
 		return ""
 	}
-	return m.DiscordgoMessage.Author.Username
+
+	if m.Nick == nil {
+		n := m.Discord.NicknameForID(me.Author.ID, me.Author.Username, me.ChannelID)
+		m.Nick = &n
+	}
+	return *m.Nick
 }
 
 // UserID returns the user id for this message.
@@ -39,6 +48,7 @@ func (m *DiscordMessage) UserID() string {
 	if m.DiscordgoMessage.Author == nil {
 		return ""
 	}
+
 	return m.DiscordgoMessage.Author.ID
 }
 
@@ -47,12 +57,20 @@ func (m *DiscordMessage) UserAvatar() string {
 	if m.DiscordgoMessage.Author == nil {
 		return ""
 	}
+
 	return discordgo.EndpointUserAvatar(m.DiscordgoMessage.Author.ID, m.DiscordgoMessage.Author.Avatar)
 }
 
 // Message returns the message content for this message.
 func (m *DiscordMessage) Message() string {
-	return m.DiscordgoMessage.ContentWithMentionsReplaced()
+	if m.Content == nil {
+		c := m.DiscordgoMessage.ContentWithMentionsReplaced()
+		c = m.Discord.replaceRoleNames(m.DiscordgoMessage, c)
+		c = m.Discord.replaceChannelNames(m.DiscordgoMessage, c)
+
+		m.Content = &c
+	}
+	return *m.Content
 }
 
 // RawMessage returns the raw message content for this message.
@@ -94,8 +112,8 @@ func NewDiscord(args ...interface{}) *Discord {
 
 var channelIDRegex = regexp.MustCompile("<#[0-9]*>")
 
-func (d *Discord) replaceChannelNames(message *discordgo.Message) {
-	message.Content = channelIDRegex.ReplaceAllStringFunc(message.Content, func(str string) string {
+func (d *Discord) replaceChannelNames(message *discordgo.Message, content string) string {
+	return channelIDRegex.ReplaceAllStringFunc(content, func(str string) string {
 		c, err := d.Channel(str[2 : len(str)-1])
 		if err != nil {
 			return str
@@ -107,8 +125,8 @@ func (d *Discord) replaceChannelNames(message *discordgo.Message) {
 
 var roleIDRegex = regexp.MustCompile("<@&[0-9]*>")
 
-func (d *Discord) replaceRoleNames(message *discordgo.Message) {
-	message.Content = roleIDRegex.ReplaceAllStringFunc(message.Content, func(str string) string {
+func (d *Discord) replaceRoleNames(message *discordgo.Message, content string) string {
+	return roleIDRegex.ReplaceAllStringFunc(content, func(str string) string {
 		roleID := str[3 : len(str)-1]
 
 		c, err := d.Channel(message.ChannelID)
@@ -136,10 +154,11 @@ func (d *Discord) onMessageCreate(s *discordgo.Session, message *discordgo.Messa
 		return
 	}
 
-	d.replaceChannelNames(message.Message)
-	d.replaceRoleNames(message.Message)
-
-	d.messageChan <- &DiscordMessage{message.Message, MessageTypeCreate}
+	d.messageChan <- &DiscordMessage{
+		Discord:          d,
+		DiscordgoMessage: message.Message,
+		MessageType:      MessageTypeCreate,
+	}
 }
 
 func (d *Discord) onMessageUpdate(s *discordgo.Session, message *discordgo.MessageUpdate) {
@@ -147,13 +166,19 @@ func (d *Discord) onMessageUpdate(s *discordgo.Session, message *discordgo.Messa
 		return
 	}
 
-	d.replaceChannelNames(message.Message)
-
-	d.messageChan <- &DiscordMessage{message.Message, MessageTypeUpdate}
+	d.messageChan <- &DiscordMessage{
+		Discord:          d,
+		DiscordgoMessage: message.Message,
+		MessageType:      MessageTypeUpdate,
+	}
 }
 
 func (d *Discord) onMessageDelete(s *discordgo.Session, message *discordgo.MessageDelete) {
-	d.messageChan <- &DiscordMessage{message.Message, MessageTypeDelete}
+	d.messageChan <- &DiscordMessage{
+		Discord:          d,
+		DiscordgoMessage: message.Message,
+		MessageType:      MessageTypeDelete,
+	}
 }
 
 // Name returns the name of the service.
@@ -180,6 +205,7 @@ func (d *Discord) Open() (<-chan Message, error) {
 		session.AddHandler(d.onMessageCreate)
 		session.AddHandler(d.onMessageUpdate)
 		session.AddHandler(d.onMessageDelete)
+		session.State.TrackPresences = false
 
 		d.Sessions[i] = session
 	}
@@ -212,7 +238,33 @@ func (d *Discord) SendMessage(channel, message string) error {
 		log.Println("Error sending discord message: ", err)
 		return err
 	}
+
 	return nil
+}
+
+// SendAction sends an action.
+func (d *Discord) SendAction(channel, message string) error {
+	if channel == "" {
+		log.Println("Empty channel could not send message", message)
+		return nil
+	}
+
+	p, err := d.UserChannelPermissions(d.UserID(), channel)
+	if err != nil {
+		return d.SendMessage(channel, message)
+	}
+
+	if p&discordgo.PermissionEmbedLinks == discordgo.PermissionEmbedLinks {
+		if _, err := d.Session.ChannelMessageSendEmbed(channel, &discordgo.MessageEmbed{
+			Color:       d.UserColor(d.UserID(), channel),
+			Description: message,
+		}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	return d.SendMessage(channel, message)
 }
 
 // DeleteMessage deletes a message.
@@ -310,8 +362,8 @@ func (d *Discord) IsPrivate(message Message) bool {
 	return err == nil && c.IsPrivate
 }
 
-// IsModerator returns whether or not the sender of a message is a moderator.
-func (d *Discord) IsModerator(message Message) bool {
+// IsChannelOwner returns whether or not the sender of a message is a moderator.
+func (d *Discord) IsChannelOwner(message Message) bool {
 	c, err := d.Channel(message.Channel())
 	if err != nil {
 		return false
@@ -320,7 +372,19 @@ func (d *Discord) IsModerator(message Message) bool {
 	if err != nil {
 		return false
 	}
-	return g.OwnerID == message.UserID()
+	return g.OwnerID == message.UserID() || d.IsBotOwner(message)
+}
+
+// IsModerator returns whether or not the sender of a message is a moderator.
+func (d *Discord) IsModerator(message Message) bool {
+	p, err := d.UserChannelPermissions(message.UserID(), message.Channel())
+	if err == nil {
+		if p&discordgo.PermissionAdministrator == discordgo.PermissionAdministrator || p&discordgo.PermissionManageChannels == discordgo.PermissionManageChannels || p&discordgo.PermissionManageServer == discordgo.PermissionManageServer {
+			return true
+		}
+	}
+
+	return d.IsChannelOwner(message)
 }
 
 // ChannelCount returns the number of channels the bot is in.
@@ -342,7 +406,11 @@ func (d *Discord) MessageHistory(channel string) []Message {
 
 	messages := make([]Message, len(c.Messages))
 	for i := 0; i < len(c.Messages); i++ {
-		messages[i] = &DiscordMessage{c.Messages[i], MessageTypeCreate}
+		messages[i] = &DiscordMessage{
+			Discord:          d,
+			DiscordgoMessage: c.Messages[i],
+			MessageType:      MessageTypeCreate,
+		}
 	}
 
 	return messages
@@ -384,6 +452,16 @@ func (d *Discord) UserChannelPermissions(userID, channelID string) (apermissions
 		}
 	}
 	return
+}
+
+func (d *Discord) UserColor(userID, channelID string) int {
+	for _, s := range d.Sessions {
+		color := s.State.UserColor(userID, channelID)
+		if color != 0 {
+			return color
+		}
+	}
+	return 0
 }
 
 func (d *Discord) Nickname(message Message) string {

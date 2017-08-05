@@ -130,6 +130,11 @@ func (s *Slack) SendMessage(channel, message string) error {
 	return nil
 }
 
+// SendAction sends an action.
+func (s *Slack) SendAction(channel, message string) error {
+	return s.SendMessage(channel, message)
+}
+
 // DeleteMessage deletes a message.
 func (s *Slack) DeleteMessage(channel, messageID string) error {
 	return errors.New("Slack does not support deleting messages.")
@@ -200,6 +205,11 @@ func (s *Slack) IsBotOwner(message Message) bool {
 
 // IsPrivate returns whether or not a message was private.
 func (s *Slack) IsPrivate(message Message) bool {
+	return false
+}
+
+// IsChannelOwner returns whether or not the sender of a message is the owner.
+func (s *Slack) IsChannelOwner(message Message) bool {
 	return false
 }
 

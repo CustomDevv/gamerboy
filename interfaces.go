@@ -40,6 +40,7 @@ type Service interface {
 	Open() (<-chan Message, error)
 	IsMe(message Message) bool
 	SendMessage(channel, message string) error
+	SendAction(channel, message string) error
 	DeleteMessage(channel, messageID string) error
 	SendFile(channel, name string, r io.Reader) error
 	BanUser(channel, userID string, duration int) error
@@ -49,6 +50,7 @@ type Service interface {
 	PrivateMessage(userID, messageID string) error
 	IsBotOwner(message Message) bool
 	IsPrivate(message Message) bool
+	IsChannelOwner(message Message) bool
 	IsModerator(message Message) bool
 	SupportsPrivateMessages() bool
 	SupportsMultiline() bool

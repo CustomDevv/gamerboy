@@ -146,6 +146,8 @@ func (p *comicPlugin) makeComic(bot *bruxism.Bot, service bruxism.Service, messa
 
 // Message handler.
 func (p *comicPlugin) Message(bot *bruxism.Bot, service bruxism.Service, message bruxism.Message) {
+	defer bruxism.MessageRecover()
+
 	if service.IsMe(message) {
 		return
 	}
@@ -171,6 +173,13 @@ func (p *comicPlugin) Message(bot *bruxism.Bot, service bruxism.Service, message
 		messages := []*comicgen.Message{}
 
 		splits := strings.Split(str, "|")
+		if len(splits) == 0 || (len(splits) == 1 && len(splits[0]) == 0) {
+			service.SendMessage(message.Channel(), fmt.Sprintf("Sorry %s, you didn't add any text.", message.UserName()))
+			return
+		}
+		if len(splits) > 10 {
+			splits = splits[:10]
+		}
 		for _, line := range splits {
 			line := strings.Trim(line, " ")
 
@@ -180,7 +189,7 @@ func (p *comicPlugin) Message(bot *bruxism.Bot, service bruxism.Service, message
 			if strings.Index(line, ":") != -1 {
 				lineSplit := strings.Split(line, ":")
 
-				author = strings.ToLower(strings.Trim(lineSplit[0], " "))
+				author = strings.Trim(lineSplit[0], " ")
 
 				var err error
 				speaker, err = strconv.Atoi(author)
@@ -188,7 +197,7 @@ func (p *comicPlugin) Message(bot *bruxism.Bot, service bruxism.Service, message
 					speaker = -1
 				}
 
-				text = strings.Trim(lineSplit[1], " ")
+				text = strings.Trim(strings.Join(lineSplit[1:], ":"), " ")
 			} else {
 				text = line
 			}
@@ -198,11 +207,6 @@ func (p *comicPlugin) Message(bot *bruxism.Bot, service bruxism.Service, message
 				Text:    text,
 				Author:  author,
 			})
-		}
-
-		if len(messages) == 0 {
-			service.SendMessage(message.Channel(), fmt.Sprintf("Sorry %s, you didn't add any text.", message.UserName()))
-			return
 		}
 
 		p.makeComic(bot, service, message, &comicgen.Script{

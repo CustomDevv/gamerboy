@@ -12,7 +12,6 @@ import (
 	"github.com/iopred/bruxism"
 	"github.com/iopred/bruxism/carbonitexplugin"
 	"github.com/iopred/bruxism/chartplugin"
-	"github.com/iopred/bruxism/comicplugin"
 	"github.com/iopred/bruxism/discordavatarplugin"
 	"github.com/iopred/bruxism/emojiplugin"
 	"github.com/iopred/bruxism/inviteplugin"
@@ -28,7 +27,6 @@ import (
 	"github.com/iopred/bruxism/streamerplugin"
 	"github.com/iopred/bruxism/topstreamersplugin"
 	"github.com/iopred/bruxism/triviaplugin"
-	"github.com/iopred/bruxism/wormholeplugin"
 	"github.com/iopred/bruxism/youtubejoinplugin"
 )
 
@@ -124,13 +122,11 @@ func main() {
 	bot.RegisterPlugin(youtube, cp)
 
 	bot.RegisterPlugin(youtube, chartplugin.New())
-	bot.RegisterPlugin(youtube, comicplugin.New())
 	bot.RegisterPlugin(youtube, liveplugin.New(ytLiveChannel))
 	bot.RegisterPlugin(youtube, reminderplugin.New())
 	bot.RegisterPlugin(youtube, streamerplugin.New(youtube))
 	bot.RegisterPlugin(youtube, topstreamersplugin.New(youtube))
 	bot.RegisterPlugin(youtube, triviaplugin.New())
-	bot.RegisterPlugin(youtube, wormholeplugin.New())
 	bot.RegisterPlugin(youtube, ytip)
 
 	// Register the Discord service if we have an email or token.
@@ -153,7 +149,6 @@ func main() {
 		}
 
 		bot.RegisterPlugin(discord, chartplugin.New())
-		bot.RegisterPlugin(discord, comicplugin.New())
 		bot.RegisterPlugin(discord, discordavatarplugin.New())
 		bot.RegisterPlugin(discord, emojiplugin.New())
 		bot.RegisterPlugin(discord, liveplugin.New(ytLiveChannel))
@@ -165,7 +160,6 @@ func main() {
 		bot.RegisterPlugin(discord, streamerplugin.New(youtube))
 		bot.RegisterPlugin(discord, topstreamersplugin.New(youtube))
 		bot.RegisterPlugin(discord, triviaplugin.New())
-		bot.RegisterPlugin(discord, wormholeplugin.New())
 	}
 
 	// Register the IRC service if we have an IRC server and username.
@@ -176,13 +170,11 @@ func main() {
 		bot.RegisterPlugin(irc, cp)
 
 		bot.RegisterPlugin(irc, chartplugin.New())
-		bot.RegisterPlugin(irc, comicplugin.New())
 		bot.RegisterPlugin(irc, liveplugin.New(ytLiveChannel))
 		bot.RegisterPlugin(irc, reminderplugin.New())
 		bot.RegisterPlugin(irc, streamerplugin.New(youtube))
 		bot.RegisterPlugin(irc, topstreamersplugin.New(youtube))
 		bot.RegisterPlugin(irc, triviaplugin.New())
-		bot.RegisterPlugin(irc, wormholeplugin.New())
 	}
 
 	// Register the Slack service if we have a Slack token.
@@ -194,12 +186,11 @@ func main() {
 		bot.RegisterPlugin(slack, cp)
 
 		bot.RegisterPlugin(slack, chartplugin.New())
-		bot.RegisterPlugin(slack, comicplugin.New())
+
 		bot.RegisterPlugin(slack, liveplugin.New(ytLiveChannel))
 		bot.RegisterPlugin(slack, streamerplugin.New(youtube))
 		bot.RegisterPlugin(slack, topstreamersplugin.New(youtube))
 		bot.RegisterPlugin(slack, triviaplugin.New())
-		bot.RegisterPlugin(slack, wormholeplugin.New())
 	}
 
 	// Start all our services.
@@ -209,7 +200,6 @@ func main() {
 	// This will cause the youtubejoin plugin to join any live streams on those channels.
 	if youtubeChannelIDs != "" {
 		channelIDs := strings.Split(youtubeChannelIDs, ",")
-
 		for _, channelID := range channelIDs {
 			ytip.Monitor(channelID)
 		}
