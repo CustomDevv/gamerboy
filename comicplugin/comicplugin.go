@@ -9,7 +9,6 @@ import (
 	"math"
 	"math/rand"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -150,6 +149,7 @@ func (p *comicPlugin) makeComic(bot *bruxism.Bot, service bruxism.Service, messa
 						if p.Public[globalID] && len(m.Attachments) > 0 {
 							service.SendMessage("367871992503730176", m.Attachments[0].URL)
 						}
+						p.log[message.Channel()] = nil
 						return
 					}
 				}
@@ -178,8 +178,7 @@ func (p *comicPlugin) makeComic(bot *bruxism.Bot, service bruxism.Service, messa
 			if p.Public[globalID] && service.Name() == bruxism.DiscordServiceName {
 				service.SendMessage("367871992503730176", url)
 			}
-
-			runtime.GC()
+			p.log[message.Channel()] = nil
 		}()
 	}
 }
