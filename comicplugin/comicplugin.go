@@ -65,7 +65,7 @@ func (p *comicPlugin) Help(bot *bruxism.Bot, service bruxism.Service, message br
 			bruxism.CommandHelp(service, "customcomicsimple", "[id:] <text> | [id:] <text>", "Creates a simple custom comic.")[0],
 		}...)
 
-		if service.Name() == bruxism.DiscordServiceName {
+		if service.Name() == bruxism.DiscordServiceName && service.IsChannelOwner(message) {
 			help = append(help, []string{
 				bruxism.CommandHelp(service, "comicpublic", "", "Makes comics in this server public.")[0],
 				bruxism.CommandHelp(service, "comicprivate", "", "Makes comics in this server private (default).")[0],
@@ -217,10 +217,10 @@ func (p *comicPlugin) Message(bot *bruxism.Bot, service bruxism.Service, message
 		}
 	}
 
-	if service.Name() == bruxism.DiscordServiceName && bruxism.MatchesCommand(service, "comicpublic", message) {
+	if service.Name() == bruxism.DiscordServiceName && bruxism.MatchesCommand(service, "comicpublic", message) && service.IsChannelOwner(message) {
 		p.Public[globalID] = true
 		service.SendMessage(message.Channel(), "Comics are now public. Visit https://discord.gg/HWN9pwj to see them all.")
-	} else if service.Name() == bruxism.DiscordServiceName && bruxism.MatchesCommand(service, "comicprivate", message) {
+	} else if service.Name() == bruxism.DiscordServiceName && bruxism.MatchesCommand(service, "comicprivate", message) && service.IsChannelOwner(message) {
 		delete(p.Public, globalID)
 		service.SendMessage(message.Channel(), "Comics are no longer public.")
 	} else if bruxism.MatchesCommand(service, "customcomic", message) || bruxism.MatchesCommand(service, "customcomicsimple", message) {
